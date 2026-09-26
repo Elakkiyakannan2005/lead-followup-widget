@@ -51,3 +51,123 @@
     padding: 9px 18px;
     font-size: 13.5px;
     font-weight: 600;
+    cursor: pointer;
+  }
+  .btn-cancel {
+    background: #f0f1f3;
+    color: #354052;
+  }
+  .btn-cancel:hover { background: #e3e5e8; }
+  .btn-save {
+    background: #1a56db;
+    color: #fff;
+  }
+  .btn-save:hover { background: #164ec2; }
+  .btn-save:disabled {
+    background: #9db6ec;
+    cursor: not-allowed;
+  }
+  .status-msg {
+    margin-top: 14px;
+    font-size: 13px;
+    padding: 8px 10px;
+    border-radius: 6px;
+    display: none;
+  }
+  .status-msg.success {
+    display: block;
+    background: #ecfdf3;
+    color: #027a48;
+  }
+  .status-msg.error {
+    display: block;
+    background: #fef3f2;
+    color: #b42318;
+  }
+</style>
+</head>
+<body>
+
+  <h2>Update Lead Follow-Up</h2>
+
+  <label for="followupDate">Next Follow-Up Date</label>
+  <input type="date" id="followupDate" />
+
+  <label for="notes">Notes</label>
+  <textarea id="notes" placeholder="Add call notes, next steps, etc."></textarea>
+
+  <div id="statusMsg" class="status-msg"></div>
+
+  <div class="btn-row">
+    <button class="btn-cancel" id="cancelBtn">Cancel</button>
+    <button class="btn-save" id="saveBtn">Save</button>
+  </div>
+
+<script>
+  var currentLeadId = null;
+
+  function showStatus(msg, type) {
+    var el = document.getElementById("statusMsg");
+    el.textContent = msg;
+    el.className = "status-msg " + type;
+  }
+
+  document.getElementById("cancelBtn").addEventListener("click", function () {
+    ZOHO.CRM.UI.Popup.closeReload();
+  });
+
+  document.getElementById("saveBtn").addEventListener("click", function () {
+    var followupDate = document.getElementById("followupDate").value;
+    var notes = document.getElementById("notes").value.trim();
+
+    if (!followupDate && !notes) {
+      showStatus("Please fill in at least one field.", "error");
+      return;
+    }
+    if (!currentLeadId) {
+      showStatus("No Lead record found in context.", "error");
+      return;
+    }
+
+    var saveBtn = document.getElementById("saveBtn");
+    saveBtn.disabled = true;
+    saveBtn.textContent = "Saving...";
+
+    var updateData = {};
+    if (followupDate) updateData["Follow_Up_Date"] = followupDate;
+    if (notes) updateData["Description"] = notes;
+
+    ZOHO.CRM.API.updateRecord({
+      Entity: "Leads",
+      APIData: Object.assign({ id: currentLeadId }, updateData),
+      Trigger: ["workflow"]
+    }).then(function (response) {
+      var codeOk = response && response.data && response.data[0] &&
+                   response.data[0].code === "SUCCESS";
+      if (codeOk) {
+        showStatus("Lead updated successfully!", "success");
+        setTimeout(function () {
+          ZOHO.CRM.UI.Popup.closeReload();
+        }, 900);
+      } else {
+        showStatus("Update failed. Check field API names for your org.", "error");
+        saveBtn.disabled = false;
+        saveBtn.textContent = "Save";
+      }
+    }).catch(function (err) {
+      console.error(err);
+      showStatus("Something went wrong while updating the Lead.", "error");
+      saveBtn.disabled = false;
+      saveBtn.textContent = "Save";
+    });
+  });
+
+  ZOHO.embeddedApp.on("PageLoad", function (data) {
+    currentLeadId = data && (data.EntityId || (data.Entity && data.Entity.id));
+  });
+
+  ZOHO.embeddedApp.init();
+</script>
+
+</body>
+</html>
