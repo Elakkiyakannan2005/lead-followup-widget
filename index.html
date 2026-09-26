@@ -2,195 +2,52 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<title>Related Contacts Widget</title>
+<title>Lead Follow-Up Widget</title>
 <script src="https://live.zwidgets.com/js-sdk/1.2/ZohoEmbededAppSDK.min.js"></script>
 <style>
   * { box-sizing: border-box; }
   body {
     font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
     margin: 0;
-    padding: 16px;
-    background: #f7f8fa;
+    padding: 20px;
+    background: #ffffff;
     color: #1f2a37;
   }
-  .header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 14px;
-  }
-  .header h2 {
+  h2 {
     font-size: 16px;
-    margin: 0;
+    margin: 0 0 16px 0;
     font-weight: 600;
   }
-  .refresh-btn {
-    border: 1px solid #d5d9e0;
-    background: #fff;
-    border-radius: 6px;
-    padding: 6px 12px;
-    font-size: 13px;
-    cursor: pointer;
-    color: #354052;
-  }
-  .refresh-btn:hover { background: #f0f1f3; }
-
-  .card-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
-    gap: 12px;
-  }
-  .contact-card {
-    background: #fff;
-    border: 1px solid #e5e7eb;
-    border-radius: 10px;
-    padding: 14px;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.04);
-  }
-  .contact-name {
-    font-size: 14px;
-    font-weight: 600;
-    color: #1a56db;
-    margin-bottom: 6px;
-  }
-  .contact-row {
+  label {
+    display: block;
     font-size: 12.5px;
+    font-weight: 600;
     color: #52606d;
-    margin: 3px 0;
+    margin-bottom: 5px;
+    margin-top: 14px;
+  }
+  input[type="date"], textarea {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid #d5d9e0;
+    border-radius: 6px;
+    font-size: 13.5px;
+    font-family: inherit;
+    color: #1f2a37;
+  }
+  textarea {
+    resize: vertical;
+    min-height: 90px;
+  }
+  .btn-row {
     display: flex;
-    gap: 6px;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 22px;
   }
-  .contact-row .label {
-    color: #8a94a6;
-    min-width: 46px;
-  }
-  .avatar {
-    width: 34px;
-    height: 34px;
-    border-radius: 50%;
-    background: #dbeafe;
-    color: #1a56db;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: 700;
-    font-size: 13px;
-    margin-bottom: 8px;
-  }
-  .empty, .loading, .error {
-    padding: 30px 10px;
-    text-align: center;
-    color: #8a94a6;
-    font-size: 13px;
-  }
-  .error { color: #c0362c; }
-</style>
-</head>
-<body>
-
-  <div class="header">
-    <h2>Related Contacts</h2>
-    <button class="refresh-btn" id="refreshBtn">Refresh</button>
-  </div>
-
-  <div id="content">
-    <div class="loading">Loading contacts…</div>
-  </div>
-
-<script>
-  var currentDealId = null;
-
-  function initials(name) {
-    if (!name) return "?";
-    var parts = name.trim().split(" ");
-    return (parts[0][0] + (parts[1] ? parts[1][0] : "")).toUpperCase();
-  }
-
-  function renderContacts(contacts) {
-    var content = document.getElementById("content");
-    if (!contacts || contacts.length === 0) {
-      content.innerHTML = '<div class="empty">No related contacts found for this Deal.</div>';
-      return;
-    }
-    var html = '<div class="card-grid">';
-    contacts.forEach(function (c) {
-      var name = c.Full_Name || ((c.First_Name || "") + " " + (c.Last_Name || "")).trim() || "Unnamed";
-      var email = c.Email || "—";
-      var phone = c.Phone || c.Mobile || "—";
-      var title = c.Title || "—";
-      html += '' +
-        '<div class="contact-card">' +
-          '<div class="avatar">' + initials(name) + '</div>' +
-          '<div class="contact-name">' + name + '</div>' +
-          '<div class="contact-row"><span class="label">Title</span><span>' + title + '</span></div>' +
-          '<div class="contact-row"><span class="label">Email</span><span>' + email + '</span></div>' +
-          '<div class="contact-row"><span class="label">Phone</span><span>' + phone + '</span></div>' +
-        '</div>';
-    });
-    html += '</div>';
-    content.innerHTML = html;
-  }
-
-  function renderError(msg) {
-    document.getElementById("content").innerHTML =
-      '<div class="error">' + msg + '</div>';
-  }
-
-  function loadContacts(dealId) {
-    document.getElementById("content").innerHTML =
-      '<div class="loading">Loading contacts…</div>';
-
-    ZOHO.CRM.API.getRelatedRecords({
-      Entity: "Deals",
-      RecordID: dealId,
-      RelatedList: "Contact_Roles",
-      page: 1,
-      per_page: 50
-    }).then(function (response) {
-      var roles = (response && response.data) ? response.data : [];
-      var contactRefs = roles
-        .map(function (r) { return r.Contact; })
-        .filter(function (c) { return c && c.id; });
-
-      if (contactRefs.length === 0) {
-        renderContacts([]);
-        return;
-      }
-
-      // Fetch full details for each linked contact
-      var lookups = contactRefs.map(function (c) {
-        return ZOHO.CRM.API.getRecord({ Entity: "Contacts", RecordID: c.id })
-          .then(function (res) {
-            return (res && res.data && res.data[0]) ? res.data[0] : null;
-          })
-          .catch(function () { return null; });
-      });
-
-      Promise.all(lookups).then(function (contacts) {
-        renderContacts(contacts.filter(Boolean));
-      });
-    }).catch(function (err) {
-      console.error(err);
-      renderError("Could not load related contacts. Check that the Deal–Contact related list API name is correct.");
-    });
-  }
-
-  document.getElementById("refreshBtn").addEventListener("click", function () {
-    if (currentDealId) loadContacts(currentDealId);
-  });
-
-  ZOHO.embeddedApp.on("PageLoad", function (data) {
-    // data.EntityId is the Deal record id when placed on the Deal detail page
-    currentDealId = data && (data.EntityId || (data.Entity && data.Entity.id));
-    if (currentDealId) {
-      loadContacts(currentDealId);
-    } else {
-      renderError("No Deal record context found.");
-    }
-  });
-
-  ZOHO.embeddedApp.init();
-</script>
-
-</body>
-</html>
+  button {
+    border: none;
+    border-radius: 6px;
+    padding: 9px 18px;
+    font-size: 13.5px;
+    font-weight: 600;
